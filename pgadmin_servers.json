@@ -1,0 +1,15 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Portfolio Database",
+      "Group": "Local",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "portfolio_db",
+      "Username": "postgres",
+      "Password": "password",
+      "SSLMode": "prefer",
+      "Comment": "Portfolio database connection"
+    }
+  }
+}
