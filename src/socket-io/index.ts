@@ -1,38 +1,52 @@
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-
-import cors from "cors"
+import cors from 'cors';
 
 const app = express();
-app.use(cors())
+app.use(cors());
+
 const server = createServer(app);
-const io = new Server(server,
-  {
-    cors: {
-      origin: "http://localhost:3001", // Replace with your client's URL
-      methods: ["GET", "POST"],
-    },
-  });
-const port = 5005
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CLIENT_URL || "http://localhost:3001",
+    methods: ["GET", "POST"],
+  },
+});
+
+const port = process.env.PORT ? parseInt(process.env.PORT) : 5005;
 
 io.on('connection', (socket) => {
-  console.log('Client connected');
+  console.log(`Client connected: ${socket.id}`);
+  
   socket.on('message', (data: string) => {
-    console.log("mesage from front-end", data)
+    console.log("Message from front-end:", data);
     io.emit('response', `Echo: ${data}`);
   });
-  socket.on('client-message', (msg) => {
+  
+  socket.on('client-message', (msg: string) => {
     console.log('Received from client:', msg);
     socket.emit('server-message', `Server received: ${msg}`);
   });
+  
+  socket.on('chatMessage', (data: string) => {
+    console.log("Chat message from client:", data);
+    socket.broadcast.emit('chatMessage', data);
+  });
+  
+  socket.on('disconnect', (reason: string) => {
+    console.log(`Client disconnected: ${socket.id}, reason: ${reason}`);
+  });
+  
+  socket.on('error', (error: Error) => {
+    console.error(`Socket error for ${socket.id}:`, error);
+  });
 });
 
-
-io.on("chatMessage", (data) => {
-  console.log("message from client", data)
-})
+server.on('error', (error: Error) => {
+  console.error('Server error:', error);
+});
 
 server.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+  console.log(`Socket.IO server running on http://localhost:${port}`);
 });

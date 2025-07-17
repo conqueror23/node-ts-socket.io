@@ -1,8 +1,21 @@
+interface ShoeArgs {
+  brand: string;
+  type: string;
+}
+
+interface ShoeResponse {
+  brand: string;
+  type: string;
+}
+
 export const shoeResolvers = {
   Query: {
     shoeHandler: (
       _: any,
-      args: { brand: string; type: string }
-    ) => ({ brand: "Addidas", type: "athlate" })
+      args: ShoeArgs
+    ): ShoeResponse => ({ 
+      brand: args.brand || "Adidas", 
+      type: args.type || "athletic" 
+    })
   }
 }
