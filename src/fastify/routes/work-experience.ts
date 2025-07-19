@@ -1,6 +1,6 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import pool from '../../database/connection';
-import { WorkExperience, CreateWorkExperience, UpdateWorkExperience } from '../../database/models';
+import { CreateWorkExperience, UpdateWorkExperience } from '../../database/models';
 
 interface WorkExperienceParams {
   id: string;
@@ -19,7 +19,7 @@ export async function workExperienceRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: WorkExperienceQuery }>('/', async (request, reply) => {
     try {
       const { employment_type, is_current, company_name, limit = '50', offset = '0' } = request.query;
-      
+
       let query = 'SELECT * FROM work_experience WHERE 1=1';
       const params: any[] = [];
       let paramIndex = 1;
@@ -46,7 +46,7 @@ export async function workExperienceRoutes(fastify: FastifyInstance) {
       params.push(parseInt(limit), parseInt(offset));
 
       const result = await pool.query(query, params);
-      
+
       return {
         data: result.rows,
         meta: {
@@ -66,11 +66,11 @@ export async function workExperienceRoutes(fastify: FastifyInstance) {
     try {
       const { id } = request.params;
       const result = await pool.query('SELECT * FROM work_experience WHERE id = $1', [id]);
-      
+
       if (result.rows.length === 0) {
         return reply.status(404).send({ error: 'Work experience not found' });
       }
-      
+
       return { data: result.rows[0] };
     } catch (error) {
       request.log.error(error);
@@ -82,7 +82,7 @@ export async function workExperienceRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: CreateWorkExperience }>('/', async (request, reply) => {
     try {
       const workExp = request.body;
-      
+
       const query = `
         INSERT INTO work_experience (
           company_name, position_title, employment_type, location,
@@ -92,7 +92,7 @@ export async function workExperienceRoutes(fastify: FastifyInstance) {
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
         ) RETURNING *
       `;
-      
+
       const values = [
         workExp.company_name,
         workExp.position_title,
@@ -107,9 +107,9 @@ export async function workExperienceRoutes(fastify: FastifyInstance) {
         workExp.company_url || null,
         workExp.company_logo_url || null
       ];
-      
+
       const result = await pool.query(query, values);
-      
+
       reply.status(201).send({ data: result.rows[0] });
     } catch (error) {
       request.log.error(error);
@@ -122,18 +122,18 @@ export async function workExperienceRoutes(fastify: FastifyInstance) {
     try {
       const { id } = request.params;
       const updates = request.body;
-      
+
       // Check if work experience exists
       const existingWorkExp = await pool.query('SELECT * FROM work_experience WHERE id = $1', [id]);
       if (existingWorkExp.rows.length === 0) {
         return reply.status(404).send({ error: 'Work experience not found' });
       }
-      
+
       // Build dynamic update query
       const updateFields: string[] = [];
       const values: any[] = [];
       let paramIndex = 1;
-      
+
       Object.entries(updates).forEach(([key, value]) => {
         if (value !== undefined) {
           updateFields.push(`${key} = $${paramIndex}`);
@@ -141,11 +141,11 @@ export async function workExperienceRoutes(fastify: FastifyInstance) {
           paramIndex++;
         }
       });
-      
+
       if (updateFields.length === 0) {
         return reply.status(400).send({ error: 'No fields to update' });
       }
-      
+
       const query = `
         UPDATE work_experience 
         SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP 
@@ -153,9 +153,9 @@ export async function workExperienceRoutes(fastify: FastifyInstance) {
         RETURNING *
       `;
       values.push(id);
-      
+
       const result = await pool.query(query, values);
-      
+
       return { data: result.rows[0] };
     } catch (error) {
       request.log.error(error);
@@ -167,13 +167,13 @@ export async function workExperienceRoutes(fastify: FastifyInstance) {
   fastify.delete<{ Params: WorkExperienceParams }>('/:id', async (request, reply) => {
     try {
       const { id } = request.params;
-      
+
       const result = await pool.query('DELETE FROM work_experience WHERE id = $1 RETURNING *', [id]);
-      
+
       if (result.rows.length === 0) {
         return reply.status(404).send({ error: 'Work experience not found' });
       }
-      
+
       return { message: 'Work experience deleted successfully', data: result.rows[0] };
     } catch (error) {
       request.log.error(error);
@@ -204,16 +204,16 @@ export async function workExperienceRoutes(fastify: FastifyInstance) {
         GROUP BY employment_type
         ORDER BY employment_type
       `;
-      
+
       const totalQuery = 'SELECT COUNT(*) as total FROM work_experience';
       const currentQuery = 'SELECT COUNT(*) as current_total FROM work_experience WHERE is_current = true';
-      
+
       const [statsResult, totalResult, currentResult] = await Promise.all([
         pool.query(statsQuery),
         pool.query(totalQuery),
         pool.query(currentQuery)
       ]);
-      
+
       return {
         total: parseInt(totalResult.rows[0].total),
         current_total: parseInt(currentResult.rows[0].current_total),

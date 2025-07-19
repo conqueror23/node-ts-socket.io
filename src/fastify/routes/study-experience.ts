@@ -1,6 +1,6 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import pool from '../../database/connection';
-import { StudyExperience, CreateStudyExperience, UpdateStudyExperience } from '../../database/models';
+import { CreateStudyExperience, UpdateStudyExperience } from '../../database/models';
 
 interface StudyExperienceParams {
   id: string;
@@ -20,7 +20,7 @@ export async function studyExperienceRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: StudyExperienceQuery }>('/', async (request, reply) => {
     try {
       const { degree_type, is_current, institution_name, field_of_study, limit = '50', offset = '0' } = request.query;
-      
+
       let query = 'SELECT * FROM study_experience WHERE 1=1';
       const params: any[] = [];
       let paramIndex = 1;
@@ -53,7 +53,7 @@ export async function studyExperienceRoutes(fastify: FastifyInstance) {
       params.push(parseInt(limit), parseInt(offset));
 
       const result = await pool.query(query, params);
-      
+
       return {
         data: result.rows,
         meta: {
@@ -73,11 +73,11 @@ export async function studyExperienceRoutes(fastify: FastifyInstance) {
     try {
       const { id } = request.params;
       const result = await pool.query('SELECT * FROM study_experience WHERE id = $1', [id]);
-      
+
       if (result.rows.length === 0) {
         return reply.status(404).send({ error: 'Study experience not found' });
       }
-      
+
       return { data: result.rows[0] };
     } catch (error) {
       request.log.error(error);
@@ -89,7 +89,7 @@ export async function studyExperienceRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: CreateStudyExperience }>('/', async (request, reply) => {
     try {
       const studyExp = request.body;
-      
+
       const query = `
         INSERT INTO study_experience (
           institution_name, degree_type, field_of_study, specialization,
@@ -100,7 +100,7 @@ export async function studyExperienceRoutes(fastify: FastifyInstance) {
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
         ) RETURNING *
       `;
-      
+
       const values = [
         studyExp.institution_name,
         studyExp.degree_type || null,
@@ -119,9 +119,9 @@ export async function studyExperienceRoutes(fastify: FastifyInstance) {
         studyExp.thesis_title || null,
         studyExp.thesis_description || null
       ];
-      
+
       const result = await pool.query(query, values);
-      
+
       reply.status(201).send({ data: result.rows[0] });
     } catch (error) {
       request.log.error(error);
@@ -134,18 +134,18 @@ export async function studyExperienceRoutes(fastify: FastifyInstance) {
     try {
       const { id } = request.params;
       const updates = request.body;
-      
+
       // Check if study experience exists
       const existingStudyExp = await pool.query('SELECT * FROM study_experience WHERE id = $1', [id]);
       if (existingStudyExp.rows.length === 0) {
         return reply.status(404).send({ error: 'Study experience not found' });
       }
-      
+
       // Build dynamic update query
       const updateFields: string[] = [];
       const values: any[] = [];
       let paramIndex = 1;
-      
+
       Object.entries(updates).forEach(([key, value]) => {
         if (value !== undefined) {
           updateFields.push(`${key} = $${paramIndex}`);
@@ -153,11 +153,11 @@ export async function studyExperienceRoutes(fastify: FastifyInstance) {
           paramIndex++;
         }
       });
-      
+
       if (updateFields.length === 0) {
         return reply.status(400).send({ error: 'No fields to update' });
       }
-      
+
       const query = `
         UPDATE study_experience 
         SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP 
@@ -165,9 +165,9 @@ export async function studyExperienceRoutes(fastify: FastifyInstance) {
         RETURNING *
       `;
       values.push(id);
-      
+
       const result = await pool.query(query, values);
-      
+
       return { data: result.rows[0] };
     } catch (error) {
       request.log.error(error);
@@ -179,13 +179,13 @@ export async function studyExperienceRoutes(fastify: FastifyInstance) {
   fastify.delete<{ Params: StudyExperienceParams }>('/:id', async (request, reply) => {
     try {
       const { id } = request.params;
-      
+
       const result = await pool.query('DELETE FROM study_experience WHERE id = $1 RETURNING *', [id]);
-      
+
       if (result.rows.length === 0) {
         return reply.status(404).send({ error: 'Study experience not found' });
       }
-      
+
       return { message: 'Study experience deleted successfully', data: result.rows[0] };
     } catch (error) {
       request.log.error(error);
@@ -218,16 +218,16 @@ export async function studyExperienceRoutes(fastify: FastifyInstance) {
         GROUP BY degree_type
         ORDER BY degree_type
       `;
-      
+
       const totalQuery = 'SELECT COUNT(*) as total FROM study_experience';
       const currentQuery = 'SELECT COUNT(*) as current_total FROM study_experience WHERE is_current = true';
-      
+
       const [statsResult, totalResult, currentResult] = await Promise.all([
         pool.query(statsQuery),
         pool.query(totalQuery),
         pool.query(currentQuery)
       ]);
-      
+
       return {
         total: parseInt(totalResult.rows[0].total),
         current_total: parseInt(currentResult.rows[0].current_total),
@@ -254,7 +254,7 @@ export async function studyExperienceRoutes(fastify: FastifyInstance) {
         FROM study_experience 
         ORDER BY degree_type, start_date DESC
       `);
-      
+
       // Group by degree type
       const degreesByType = result.rows.reduce((acc: any, row: any) => {
         const degreeType = row.degree_type || 'unspecified';
@@ -264,7 +264,7 @@ export async function studyExperienceRoutes(fastify: FastifyInstance) {
         acc[degreeType].push(row);
         return acc;
       }, {});
-      
+
       return { data: degreesByType };
     } catch (error) {
       request.log.error(error);

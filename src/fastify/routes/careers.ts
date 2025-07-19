@@ -1,6 +1,6 @@
-import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { FastifyInstance } from 'fastify';
 import pool from '../../database/connection';
-import { Career, CreateCareer, UpdateCareer } from '../../database/models';
+import { CreateCareer, UpdateCareer } from '../../database/models';
 
 interface CareerParams {
   id: string;
@@ -19,7 +19,7 @@ export async function careersRoutes(fastify: FastifyInstance) {
   fastify.get<{ Querystring: CareerQuery }>('/', async (request, reply) => {
     try {
       const { status, category, priority_level, limit = '50', offset = '0' } = request.query;
-      
+
       let query = 'SELECT * FROM careers WHERE 1=1';
       const params: any[] = [];
       let paramIndex = 1;
@@ -46,7 +46,7 @@ export async function careersRoutes(fastify: FastifyInstance) {
       params.push(parseInt(limit), parseInt(offset));
 
       const result = await pool.query(query, params);
-      
+
       return {
         data: result.rows,
         meta: {
@@ -66,11 +66,11 @@ export async function careersRoutes(fastify: FastifyInstance) {
     try {
       const { id } = request.params;
       const result = await pool.query('SELECT * FROM careers WHERE id = $1', [id]);
-      
+
       if (result.rows.length === 0) {
         return reply.status(404).send({ error: 'Career not found' });
       }
-      
+
       return { data: result.rows[0] };
     } catch (error) {
       request.log.error(error);
@@ -82,7 +82,7 @@ export async function careersRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: CreateCareer }>('/', async (request, reply) => {
     try {
       const career = request.body;
-      
+
       const query = `
         INSERT INTO careers (
           title, description, career_type, category, status, priority_level,
@@ -93,7 +93,7 @@ export async function careersRoutes(fastify: FastifyInstance) {
           $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
         ) RETURNING *
       `;
-      
+
       const values = [
         career.title,
         career.description || null,
@@ -114,9 +114,9 @@ export async function careersRoutes(fastify: FastifyInstance) {
         career.tags || [],
         career.is_public !== undefined ? career.is_public : true
       ];
-      
+
       const result = await pool.query(query, values);
-      
+
       reply.status(201).send({ data: result.rows[0] });
     } catch (error) {
       request.log.error(error);
@@ -129,18 +129,18 @@ export async function careersRoutes(fastify: FastifyInstance) {
     try {
       const { id } = request.params;
       const updates = request.body;
-      
+
       // Check if career exists
       const existingCareer = await pool.query('SELECT * FROM careers WHERE id = $1', [id]);
       if (existingCareer.rows.length === 0) {
         return reply.status(404).send({ error: 'Career not found' });
       }
-      
+
       // Build dynamic update query
       const updateFields: string[] = [];
       const values: any[] = [];
       let paramIndex = 1;
-      
+
       Object.entries(updates).forEach(([key, value]) => {
         if (value !== undefined) {
           updateFields.push(`${key} = $${paramIndex}`);
@@ -148,11 +148,11 @@ export async function careersRoutes(fastify: FastifyInstance) {
           paramIndex++;
         }
       });
-      
+
       if (updateFields.length === 0) {
         return reply.status(400).send({ error: 'No fields to update' });
       }
-      
+
       const query = `
         UPDATE careers 
         SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP 
@@ -160,9 +160,9 @@ export async function careersRoutes(fastify: FastifyInstance) {
         RETURNING *
       `;
       values.push(id);
-      
+
       const result = await pool.query(query, values);
-      
+
       return { data: result.rows[0] };
     } catch (error) {
       request.log.error(error);
@@ -174,13 +174,13 @@ export async function careersRoutes(fastify: FastifyInstance) {
   fastify.delete<{ Params: CareerParams }>('/:id', async (request, reply) => {
     try {
       const { id } = request.params;
-      
+
       const result = await pool.query('DELETE FROM careers WHERE id = $1 RETURNING *', [id]);
-      
+
       if (result.rows.length === 0) {
         return reply.status(404).send({ error: 'Career not found' });
       }
-      
+
       return { message: 'Career deleted successfully', data: result.rows[0] };
     } catch (error) {
       request.log.error(error);
@@ -202,14 +202,14 @@ export async function careersRoutes(fastify: FastifyInstance) {
         GROUP BY status, category, priority_level
         ORDER BY status, category, priority_level
       `;
-      
+
       const totalQuery = 'SELECT COUNT(*) as total FROM careers';
-      
+
       const [statsResult, totalResult] = await Promise.all([
         pool.query(statsQuery),
         pool.query(totalQuery)
       ]);
-      
+
       return {
         total: parseInt(totalResult.rows[0].total),
         breakdown: statsResult.rows
